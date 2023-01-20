@@ -1,79 +1,174 @@
-// import debounce from 'lodash.debounce';
-// import Notiflix from 'notiflix';
-// import { fetchCountries } from './fetchCountries';
+import Notiflix from 'notiflix';
+import SimpleLightbox from 'simplelightbox';
 
-// import './css/styles.css';
+import SearchService from './search-service';
 
-// Notiflix.Notify.init({position: 'center-top'});
+import './css/styles.css';
+import 'simplelightbox/dist/simple-lightbox.min.css';
 
-// const DEBOUNCE_DELAY = 300;
+let useInfiniteScroll = false;
 
-// const inputSearch = document.querySelector('input#search-box');
-// const countryList = document.querySelector('.country-list');
-// const countryInfo = document.querySelector('.country-info');
+const searchService = new SearchService();
 
-// if (!inputSearch || !countryList || !countryInfo) {
-//   throw new Error('Error: invalid markup!');
-// }
+const formSearch  = document.querySelector('#search-form');
+const gallery     = document.querySelector('.gallery');
+const btnSearch   = document.querySelector('button[type="submit"]');
+const btnLoadMore = document.querySelector('button.load-more');
+const finishText  = document.querySelector('.finish-text');
+const guardDiv    = document.querySelector('.js-guard');
+const infiniteCheck = document.querySelector('.infinite-scroll-check');
 
-// inputSearch.addEventListener('input', debounce(onInputSearch, DEBOUNCE_DELAY));
+if (!formSearch || !gallery || !btnSearch || !btnLoadMore || !finishText) {
+  throw new Error('Error: invalid markup!');
+}
 
-// function onInputSearch(evt) {
-//   const name = evt.target.value.trim();
+const observerOpts = {
+  root: null,
+  rootMargin: '300px',
+  threshold: 1.0
+}
+
+const onObserve = (entries, observer) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      onLoadMore();
+    }
+  });
+}
+
+const observer = new IntersectionObserver(onObserve, observerOpts);
+
+const lightboxOpts = {
+  captionsData: 'alt',
+  captionPosition: 'bottom',
+  captionDelay: 250,
+};
+
+const lightbox = new SimpleLightbox('.gallery .gallery__link', lightboxOpts);
+
+formSearch.addEventListener('submit', onSearch);
+btnLoadMore.addEventListener('click', onLoadMore);
+
+function onSearch(evt) {
+  evt.preventDefault();
+
+  const searchQuery = evt.currentTarget.elements.searchQuery.value.trim();
   
-//   if (!name) {
-//     clearInfo();
-//     return;
-//   }
+  if (!searchQuery) {
+    Notiflix.Notify.failure('Please enter a search query!');
+    return;
+  }
 
-//   fetchCountries(name)
-//     .then(handleData)
-//     .catch(handleError);
-// }
+  useInfiniteScroll = infiniteCheck.checked;
+  infiniteCheck.disabled = true;
 
-// function handleData(countries) {
-//   const countriesCount = countries.length;
-//   clearInfo();
-//   if (countriesCount > 10) {
-//     Notiflix.Notify.info('Too many matches found. Please enter a more specific name.');
-//   } else if (countriesCount >= 2) {
-//     countryList.innerHTML = createCountryListMarkup(countries);
-//   } else if (countriesCount == 1) {
-//     countryInfo.innerHTML = createCountryInfoMarkup(countries[0]);
-//   }  
-// }
+  initQuery(searchQuery);
+  performQuery();
+}
 
-// function handleError(err) {
-//   clearInfo();
-//   if (err.message.toLowerCase() === 'not found') {
-//     Notiflix.Notify.failure('Oops, there is no country with that name');
-//   } else {
-//     console.error(err);
-//   }
-// }
+function onLoadMore() {
+  searchService.incrementPage();
+  performQuery();
+}
 
-// function createCountryListMarkup(countries) {
-//   return countries.map(country =>
-//     `<li class='countries-item'>
-//       <img class='countries-item__flag' src='${country.flags.svg}' alt='flag of ${country.name.common}' width='30'>
-//       <span class='countries-item__name'>${country.name.common}</span>
-//     </li>`
-//     ).join('');
-// }
+function initQuery(searchQuery) {
+  searchService.setNewQuery(searchQuery);
+  gallery.innerHTML = '';
+  if (useInfiniteScroll) {
+    observer.unobserve(guardDiv);
+  } else {
+    btnLoadMore.classList.add('is-hidden');
+  }
+  finishText.classList.add('is-hidden');
+}
 
-// function createCountryInfoMarkup(country) {
-//   return `
-//   <div class='country-title'>
-//     <img class='country-flag' src='${country.flags.svg}' alt='flag of ${country.name.common}' width='30'>
-//     <span class='country-name'>${country.name.common}</span>
-//   </div>
-//   <p class='country-field'><b>Capital:</b> ${country.capital}</p>
-//   <p class='country-field'><b>Population:</b> ${country.population}</p>
-//   <p class='country-field'><b>Languages:</b> ${Object.values(country.languages).join(', ')}</p>
-//   `;
-// }
+async function performQuery() {
+  try {
+    btnSearch.disabled = true;
+    btnLoadMore.disabled = true;
 
-// function clearInfo() {
-//   countryList.innerHTML = ""; 
-//   countryInfo.innerHTML = ""; 
-// }
+    const data = await searchService.getNextData();
+
+    if (!data || (data.length == 0)) {
+      Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.');
+      return;
+    }
+      
+    if (searchService.page === 1) {
+      Notiflix.Notify.success(`Hooray! We found ${searchService.resultsQty} images.`);
+      if (useInfiniteScroll) {
+        observer.observe(guardDiv);
+      }
+    }
+
+    gallery.insertAdjacentHTML('beforeend', createGalleryMarkup(data));
+
+    refreshPage();
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    btnSearch.disabled   = false;
+    btnLoadMore.disabled = false;
+  }
+}
+
+function createGalleryMarkup(data) {
+  return data.map(({webformatURL, largeImageURL, tags, likes, views, comments, downloads}) => `
+    <li class="gallery__item">
+      <a class="gallery__link" href="${largeImageURL}">
+        <div class="gallery__thumb">
+          <img 
+            class="gallery__image"
+            src="${webformatURL}"
+            data-source="${largeImageURL}"
+            alt="${tags}"
+            loading="lazy" />
+        </div>    
+        <div class="gallery__info">
+          <p class="info__item">
+            <b>Likes</b><br>${likes}
+          </p>
+          <p class="info__item">
+            <b>Views</b><br>${views}
+          </p>
+          <p class="info__item">
+            <b>Comments</b><br>${comments}
+          </p>
+          <p class="info__item">
+            <b>Downloads</b><br>${downloads}
+          </p>
+        </div>
+      </a>
+    </li>
+  `).join('');
+}
+
+function refreshPage() {
+
+  lightbox.refresh();
+
+  if (searchService.isLastPage()) {
+    if (useInfiniteScroll) {
+      observer.unobserve(guardDiv);
+    } else {
+      btnLoadMore.classList.add('is-hidden');
+    }
+    finishText.classList.remove('is-hidden');
+  } else {
+    if (!useInfiniteScroll) {
+      btnLoadMore.classList.remove('is-hidden');
+    }
+    finishText.classList.add('is-hidden');
+  }
+ 
+  if (searchService.page > 1) {   // плавный скролл
+
+    const { height: cardHeight } = gallery.firstElementChild.getBoundingClientRect();
+
+    window.scrollBy({
+      top: cardHeight * 2,
+      behavior: "smooth",
+    });
+  }
+}

@@ -7,10 +7,28 @@
     <title>Homework 11</title>
   </head>
   <body>
-    <input type="text" id="search-box" />
-    <ul class="country-list"></ul>
-    <div class="country-info"></div>
-
+    <form class="search-form" id="search-form">
+      <input
+        id="search-box"
+        type="text"
+        name="searchQuery"
+        autocomplete="off"
+        placeholder="Search images..."
+      />
+      <button type="submit">Search</button>
+      <label class="infinite-scroll">
+        <input class="infinite-scroll-check" type="checkbox" />
+        <span class="infinite-scroll-label">use infinite scroll</span>
+      </label>
+    </form>
+    <ul class="gallery">
+      <!-- Карточки изображений -->
+    </ul>
+    <button type="button" class="load-more is-hidden">Load more</button>
+    <div class="finish-text is-hidden">
+      We're sorry, but you've reached the end of search results.
+    </div>
+    <div class="js-guard"></div>
     <script src="index.js" type="module"></script>
   </body>
 </html>
