@@ -46,7 +46,7 @@ const lightboxOpts = {
   captionDelay: 250,
 };
 
-const lightbox = new SimpleLightbox('.refs.gallery .refs.gallery__link', lightboxOpts);
+const lightbox = new SimpleLightbox('.gallery .gallery__link', lightboxOpts);
 
 refs.formSearch.addEventListener('submit', onSearch);
 refs.btnLoadMore.addEventListener('click', onLoadMore);
