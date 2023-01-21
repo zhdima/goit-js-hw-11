@@ -10,15 +10,17 @@ let useInfiniteScroll = false;
 
 const searchService = new SearchService();
 
-const formSearch  = document.querySelector('#search-form');
-const gallery     = document.querySelector('.gallery');
-const btnSearch   = document.querySelector('button[type="submit"]');
-const btnLoadMore = document.querySelector('button.load-more');
-const finishText  = document.querySelector('.finish-text');
-const guardDiv    = document.querySelector('.js-guard');
-const infiniteCheck = document.querySelector('.infinite-scroll-check');
+const refs = {
+  formSearch:    document.querySelector('#search-form'),
+  gallery:       document.querySelector('.gallery'),
+  btnSearch:     document.querySelector('button[type="submit"]'),
+  btnLoadMore:   document.querySelector('button.load-more'),
+  finishText:    document.querySelector('.finish-text'),
+  guardDiv:      document.querySelector('.js-guard'),
+  infiniteCheck: document.querySelector('.infinite-scroll-check'),
+};
 
-if (!formSearch || !gallery || !btnSearch || !btnLoadMore || !finishText) {
+if (Object.values(refs).some(el => !el)) {
   throw new Error('Error: invalid markup!');
 }
 
@@ -44,10 +46,10 @@ const lightboxOpts = {
   captionDelay: 250,
 };
 
-const lightbox = new SimpleLightbox('.gallery .gallery__link', lightboxOpts);
+const lightbox = new SimpleLightbox('.refs.gallery .refs.gallery__link', lightboxOpts);
 
-formSearch.addEventListener('submit', onSearch);
-btnLoadMore.addEventListener('click', onLoadMore);
+refs.formSearch.addEventListener('submit', onSearch);
+refs.btnLoadMore.addEventListener('click', onLoadMore);
 
 function onSearch(evt) {
   evt.preventDefault();
@@ -59,8 +61,8 @@ function onSearch(evt) {
     return;
   }
 
-  useInfiniteScroll = infiniteCheck.checked;
-  infiniteCheck.disabled = true;
+  useInfiniteScroll = refs.infiniteCheck.checked;
+  refs.infiniteCheck.disabled = true;
 
   initQuery(searchQuery);
   performQuery();
@@ -73,19 +75,19 @@ function onLoadMore() {
 
 function initQuery(searchQuery) {
   searchService.setNewQuery(searchQuery);
-  gallery.innerHTML = '';
+  refs.gallery.innerHTML = '';
   if (useInfiniteScroll) {
-    observer.unobserve(guardDiv);
+    observer.unobserve(refs.guardDiv);
   } else {
-    btnLoadMore.classList.add('is-hidden');
+    refs.btnLoadMore.classList.add('is-hidden');
   }
-  finishText.classList.add('is-hidden');
+  refs.finishText.classList.add('is-hidden');
 }
 
 async function performQuery() {
   try {
-    btnSearch.disabled = true;
-    btnLoadMore.disabled = true;
+    refs.btnSearch.disabled = true;
+    refs.btnLoadMore.disabled = true;
 
     const data = await searchService.getNextData();
 
@@ -97,19 +99,19 @@ async function performQuery() {
     if (searchService.page === 1) {
       Notiflix.Notify.success(`Hooray! We found ${searchService.resultsQty} images.`);
       if (useInfiniteScroll) {
-        observer.observe(guardDiv);
+        observer.observe(refs.guardDiv);
       }
     }
 
-    gallery.insertAdjacentHTML('beforeend', createGalleryMarkup(data));
+    refs.gallery.insertAdjacentHTML('beforeend', createGalleryMarkup(data));
 
     refreshPage();
 
   } catch (err) {
     console.error(err);
   } finally {
-    btnSearch.disabled   = false;
-    btnLoadMore.disabled = false;
+    refs.btnSearch.disabled   = false;
+    refs.btnLoadMore.disabled = false;
   }
 }
 
@@ -150,21 +152,21 @@ function refreshPage() {
 
   if (searchService.isLastPage()) {
     if (useInfiniteScroll) {
-      observer.unobserve(guardDiv);
+      observer.unobserve(refs.guardDiv);
     } else {
-      btnLoadMore.classList.add('is-hidden');
+      refs.btnLoadMore.classList.add('is-hidden');
     }
-    finishText.classList.remove('is-hidden');
+    refs.finishText.classList.remove('is-hidden');
   } else {
     if (!useInfiniteScroll) {
-      btnLoadMore.classList.remove('is-hidden');
+      refs.btnLoadMore.classList.remove('is-hidden');
     }
-    finishText.classList.add('is-hidden');
+    refs.finishText.classList.add('is-hidden');
   }
  
-  if (searchService.page > 1) {   // плавный скролл
+  if ((searchService.page > 1) && !useInfiniteScroll) {   // плавный скролл
 
-    const { height: cardHeight } = gallery.firstElementChild.getBoundingClientRect();
+    const { height: cardHeight } = refs.gallery.firstElementChild.getBoundingClientRect();
 
     window.scrollBy({
       top: cardHeight * 2,
